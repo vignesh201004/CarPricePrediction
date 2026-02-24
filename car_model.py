@@ -33,7 +33,7 @@ predictions = model.predict(X_test)
 accuracy = r2_score(y_test, predictions) * 100
 error = mean_absolute_error(y_test, predictions)
 
-# 6. Save Model Assets & Performance Metadata
+# 6. Save Assets
 joblib.dump(model, 'car_price_model.pkl')
 joblib.dump(X.columns.tolist(), 'model_columns.pkl')
 

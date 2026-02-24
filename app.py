@@ -22,7 +22,7 @@ def load_resources():
 
 model, model_columns, meta = load_resources()
 
-# --- SIDEBAR: INPUT CONFIGURATION ---
+# --- SIDEBAR ---
 st.sidebar.title("🛠️ Configuration")
 if st.sidebar.button("🔄 Reset System", use_container_width=True):
     st.rerun()
@@ -45,7 +45,7 @@ st.write(f"Intelligent Pricing Engine for: **{car_name}**")
 st.markdown("---")
 
 if model is None:
-    st.error("⚠️ System Error: Model files not found. Run 'python3 car_model.py' first.")
+    st.error("⚠️ System Error: Model files not found. Ensure all .pkl and .json files are in the repository.")
 else:
     col1, col2 = st.columns([1.2, 1])
 
@@ -63,28 +63,32 @@ else:
             if f"Seller_Type_{seller}" in model_columns: input_data[f"Seller_Type_{seller}"] = 1
             if f"Transmission_{transmission}" in model_columns: input_data[f"Transmission_{transmission}"] = 1
             
-            prediction = max(0, model.predict(input_data[model_columns])[0])
+            # --- FIX: Convert numpy float32 to standard Python float ---
+            raw_prediction = model.predict(input_data[model_columns])[0]
+            prediction = float(max(0, raw_prediction))
             
             st.balloons()
             st.metric(label="Estimated Resale Value", value=f"₹{prediction:,.2f}")
-            st.progress(min(1.0, prediction/present_price), text=f"Value Retention: { (prediction/present_price)*100:.1f}%")
+            
+            # --- FIX: Safety clipping for progress bar (0.0 to 1.0) ---
+            retention_ratio = max(0.0, min(1.0, prediction / present_price))
+            st.progress(retention_ratio, text=f"Value Retention: {retention_ratio*100:.1f}%")
 
     with col2:
         st.subheader("💡 Market Insights")
-        # Dynamic chart based on user's showroom price
         age_range = list(range(0, 16))
         dep_data = pd.DataFrame({
             'Vehicle Age': age_range,
             'Projected Value (₹)': [present_price * (0.88**a) for a in age_range]
         })
         fig = px.area(dep_data, x='Vehicle Age', y='Projected Value (₹)', title="Standard Market Depreciation")
-        fig.add_vline(x=datetime.datetime.now().year - year, line_dash="dash", line_color="red", annotation_text="Current Age")
+        fig.add_vline(x=datetime.datetime.now().year - year, line_dash="dash", line_color="red")
         st.plotly_chart(fig, use_container_width=True)
 
 # --- FOOTER METRICS ---
 st.markdown("---")
 m1, m2, m3 = st.columns(3)
-m1.small("Engine: XGBoost Regressor")
+m1.info("Engine: XGBoost Regressor")
 if meta:
     m2.metric("Model Confidence (R²)", f"{meta['accuracy']}%")
     m3.metric("Avg. Error Margin", f"₹{meta['mae']:,}")
